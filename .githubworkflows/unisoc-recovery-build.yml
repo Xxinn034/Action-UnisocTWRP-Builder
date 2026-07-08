@@ -1,0 +1,261 @@
+name: Unisoc TWRP Recovery Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      MANIFEST_URL:
+        description: 'Manifest 仓库 (通常无需修改)'
+        required: true
+        default: 'https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni'
+      MANIFEST_BRANCH:
+        description: 'Manifest 分支 (推荐 twrp-11 或 twrp-10.0)'
+        required: true
+        default: 'twrp-11'
+      DEVICE_TREE_URL:
+        description: '设备树仓库 URL (必须包含 BoardConfig.mk)'
+        required: true
+        default: 'https://github.com/你的用户名/你的展讯设备树'
+      DEVICE_TREE_BRANCH:
+        description: '设备树分支'
+        required: true
+        default: 'main'
+      DEVICE_PATH:
+        description: '设备树在源码中的路径 (如 device/unisoc/你的代号)'
+        required: true
+        default: 'device/unisoc/你的代号'
+      DEVICE_NAME:
+        description: '设备代号 (将用于输出文件名)'
+        required: true
+        default: '你的设备代号'
+      MAKEFILE_NAME:
+        description: '编译目标 (通常 omni_设备代号)'
+        required: true
+        default: 'omni_你的设备代号'
+      BUILD_TARGET:
+        description: '编译目标 (recovery 或 boot)'
+        required: true
+        default: 'recovery'
+
+jobs:
+  build:
+    if: github.event.repository.owner.id == github.event.sender.id
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+    - name: Display Parameters
+      run: |
+        echo "::group::User Inputs"
+        echo "Manifest URL: ${{ github.event.inputs.MANIFEST_URL }}"
+        echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
+        echo "Device Tree URL: ${{ github.event.inputs.DEVICE_TREE_URL }}"
+        echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
+        echo "Device Path: ${{ github.event.inputs.DEVICE_PATH }}"
+        echo "Device Name: ${{ github.event.inputs.DEVICE_NAME }}"
+        echo "Makefile Name: ${{ github.event.inputs.MAKEFILE_NAME }}"
+        echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}.img"
+        echo "::endgroup::"
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Cleanup Environment
+      uses: rokibhasansagar/slimhub_actions@main
+
+    - name: Install Dependencies
+      run: |
+        sudo apt update && sudo apt upgrade -y
+        DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
+            linux-modules-extra-$(uname -r) \
+            gperf gcc-multilib gcc-10-multilib g++-multilib g++-10-multilib \
+            libc6-dev lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils \
+            xsltproc bc ccache lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev \
+            libwxgtk3.0-gtk3-dev libxml2 lzop pngcrush schedtool squashfs-tools \
+            imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses5 python3 tar
+
+    - name: Setup Java 8
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '8'
+
+    - name: Setup SSH Keys (Optional)
+      if: ${{ startsWith(github.event.inputs.MANIFEST_URL, 'git@github.com') || 
+          startsWith(github.event.inputs.DEVICE_TREE_URL, 'git@github.com') }}
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+          ssh-private-key: |
+            ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Install Repo
+      run: |
+        mkdir ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/bin/repo
+
+    - name: Init Repo
+      run: |
+        mkdir workspace
+        cd workspace
+        echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
+        git config --global user.name "azwhikaru"
+        git config --global user.email "azwhikaru+37921907@github.com"
+        repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
+      id: pwd
+
+    - name: Repo Sync
+      run: |
+        repo sync -j$(nproc --all) --force-sync
+      working-directory: workspace
+
+    - name: Clone Device Tree
+      run: |
+        git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Remove Android.bp (if exists)
+      run: |
+        if [ -f ./${{ github.event.inputs.DEVICE_PATH }}/Android.bp ]; then
+          echo "Removing Android.bp (soong_namespace not supported)"
+          rm ./${{ github.event.inputs.DEVICE_PATH }}/Android.bp
+        fi
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    # ========== 展讯平台专属修改 ==========
+    - name: Apply Unisoc DRM Patch
+      run: |
+        # 克隆补丁仓库
+        git clone https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
+
+        # 检查并覆盖 graphics_drm.cpp
+        PATCH_FILE="./patch/unisoc-patch/graphics_drm.cpp"
+        TARGET_FILE="./bootable/recovery/minuitwrp/graphics_drm.cpp"
+        if [ -f "$PATCH_FILE" ]; then
+          echo "✅ Found patch file, applying..."
+          cp -f "$PATCH_FILE" "$TARGET_FILE"
+          echo "✅ DRM patch applied successfully."
+        else
+          echo "⚠️ Patch file not found, skipping."
+        fi
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Force Unisoc-Specific BoardConfig Optimizations
+      run: |
+        BOARD_FILE="${{ steps.pwd.outputs.workspace-folder }}/${{ github.event.inputs.DEVICE_PATH }}/BoardConfig.mk"
+        if [ -f "$BOARD_FILE" ]; then
+          echo "✅ Found BoardConfig.mk, applying Unisoc optimizations..."
+          
+          # 1. 压缩改为 xz (更高压缩率)
+          sed -i '/BOARD_RAMDISK_COMPRESSOR/d' "$BOARD_FILE"
+          echo "BOARD_RAMDISK_COMPRESSOR := xz" >> "$BOARD_FILE"
+
+          # 2. 禁用无关组件 (但保留 busybox 以防万一，可自行调整)
+          sed -i '/TW_INCLUDE_BASH/d' "$BOARD_FILE"
+          echo "TW_INCLUDE_BASH := false" >> "$BOARD_FILE"
+          sed -i '/TW_INCLUDE_NANO/d' "$BOARD_FILE"
+          echo "TW_INCLUDE_NANO := false" >> "$BOARD_FILE"
+          sed -i '/TW_INCLUDE_PIGZ/d' "$BOARD_FILE"
+          echo "TW_INCLUDE_PIGZ := false" >> "$BOARD_FILE"
+          sed -i '/TW_INCLUDE_OPENAES/d' "$BOARD_FILE"
+          echo "TW_INCLUDE_OPENAES := false" >> "$BOARD_FILE"
+          sed -i '/TW_INCLUDE_TWRPAPP/d' "$BOARD_FILE"
+          echo "TW_INCLUDE_TWRPAPP := false" >> "$BOARD_FILE"
+          sed -i '/TW_INCLUDE_CRYPTO/d' "$BOARD_FILE"
+          echo "TW_INCLUDE_CRYPTO := false" >> "$BOARD_FILE"
+          # 保留 busybox (多数情况下需要)
+          # sed -i '/TW_INCLUDE_BUSYBOX/d' "$BOARD_FILE"
+          # echo "TW_INCLUDE_BUSYBOX := true" >> "$BOARD_FILE"
+
+          # 3. 语言设置 (只保留英文+中文)
+          sed -i '/TW_EXTRA_LANGUAGES/d' "$BOARD_FILE"
+          echo "TW_EXTRA_LANGUAGES := true" >> "$BOARD_FILE"
+          sed -i '/TW_DEFAULT_LANGUAGE/d' "$BOARD_FILE"
+          echo "TW_DEFAULT_LANGUAGE := zh_CN" >> "$BOARD_FILE"
+
+          # 4. 署名
+          sed -i '/TW_DEVICE_VERSION/d' "$BOARD_FILE"
+          echo "TW_DEVICE_VERSION := Unisoc-TWRP" >> "$BOARD_FILE"
+
+          # 5. 增大分区限制 (如果设备分区允许)
+          # echo "BOARD_RECOVERYIMAGE_PARTITION_SIZE := 20971520" >> "$BOARD_FILE"
+
+          # 6. 展讯平台常用内核命令行 (可根据需要添加)
+          # echo "BOARD_KERNEL_CMDLINE := androidboot.hardware=unisoc" >> "$BOARD_FILE"
+
+          echo "✅ Unisoc optimizations applied."
+        else
+          echo "⚠️ BoardConfig.mk not found, skipping optimizations."
+        fi
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    # 清理 device.mk 中的无关引用
+    - name: Clean device.mk
+      run: |
+        DEVICE_DIR="${{ steps.pwd.outputs.workspace-folder }}/${{ github.event.inputs.DEVICE_PATH }}"
+        for mkfile in device.mk omni.mk; do
+          if [ -f "$DEVICE_DIR/$mkfile" ]; then
+            echo "Cleaning $mkfile"
+            sed -i '/bash/d' "$DEVICE_DIR/$mkfile"
+            sed -i '/nano/d' "$DEVICE_DIR/$mkfile"
+            sed -i '/pigz/d' "$DEVICE_DIR/$mkfile"
+            sed -i '/openaes/d' "$DEVICE_DIR/$mkfile"
+            sed -i '/twrpapp/d' "$DEVICE_DIR/$mkfile"
+            sed -i '/libncurses/d' "$DEVICE_DIR/$mkfile"
+            sed -i '/openssh/d' "$DEVICE_DIR/$mkfile"
+          fi
+        done
+
+    # 精简语言文件夹 (保留 fonts/ languages/ zh_CN/)
+    - name: Prune Languages
+      run: |
+        LANG_DIR="${{ steps.pwd.outputs.workspace-folder }}/bootable/recovery/gui/theme/extra-languages/"
+        if [ -d "$LANG_DIR" ]; then
+          cd "$LANG_DIR"
+          for lang in $(ls -d */ 2>/dev/null | grep -v -E '^(fonts|languages|zh_CN)/'); do
+            echo "Removing $lang"
+            rm -rf "$lang"
+          done
+          cd - >/dev/null
+          echo "✅ Language folders pruned."
+        else
+          echo "⚠️ extra-languages not found."
+        fi
+
+    - name: Set Swap Space
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 12
+
+    - name: Setup Python 2
+      run: |
+        sudo apt-get install -y python2
+        wget https://bootstrap.pypa.io/pip/2.7/get-pip.py
+        python2 get-pip.py
+        sudo rm -rf /usr/bin/python
+        sudo ln -s /usr/bin/python2 /usr/bin/python
+      continue-on-error: false
+
+    - name: Build Recovery
+      run: |
+        source build/envsetup.sh
+        export ALLOW_MISSING_DEPENDENCIES=true
+        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: | 
+          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ github.event.inputs.BUILD_TARGET }}.img
+          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
+          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*vendor*.img
+        name: ${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
+        tag_name: ${{ github.run_id }}
+        body: |
+          Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
+          Device: ${{ github.event.inputs.DEVICE_NAME }}
+          Target: ${{ github.event.inputs.BUILD_TARGET }}.img
+          Patch: Unisoc DRM fix applied.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
