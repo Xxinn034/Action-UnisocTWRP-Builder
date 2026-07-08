@@ -121,10 +121,10 @@ jobs:
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    # ========== 展讯 DRM 补丁 ==========
+    # ========== 展讯 DRM 补丁（显式指定 main 分支） ==========
     - name: Clone Unisoc DRM patch
       run: |
-        git clone https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
+        git clone -b main https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Apply Unisoc DRM patch
@@ -155,92 +155,6 @@ jobs:
       run: |
         git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.COMMON_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
-
-    # ========== 强制精简 BoardConfig ==========
-    - name: Force TWRP size optimizations (override BoardConfig)
-      run: |
-        BOARD_FILE="${{ steps.pwd.outputs.workspace-folder }}/${{ github.event.inputs.DEVICE_PATH }}/BoardConfig.mk"
-        if [ ! -f "$BOARD_FILE" ]; then
-          echo "❌ BoardConfig.mk not found! Exiting."
-          exit 1
-        fi
-        echo "✅ Found BoardConfig.mk"
-
-        # 1. 强制使用 xz 压缩（比 gzip 压缩率更高）
-        sed -i '/BOARD_RAMDISK_COMPRESSOR/d' "$BOARD_FILE"
-        echo "BOARD_RAMDISK_COMPRESSOR := xz" >> "$BOARD_FILE"
-
-        # 2. 强制禁用所有可选的额外组件（逐一覆盖可能存在的 true）
-        sed -i '/TW_INCLUDE_BASH/d' "$BOARD_FILE"
-        echo "TW_INCLUDE_BASH := false" >> "$BOARD_FILE"
-        sed -i '/TW_INCLUDE_NANO/d' "$BOARD_FILE"
-        echo "TW_INCLUDE_NANO := false" >> "$BOARD_FILE"
-        sed -i '/TW_INCLUDE_PIGZ/d' "$BOARD_FILE"
-        echo "TW_INCLUDE_PIGZ := false" >> "$BOARD_FILE"
-        sed -i '/TW_INCLUDE_OPENAES/d' "$BOARD_FILE"
-        echo "TW_INCLUDE_OPENAES := false" >> "$BOARD_FILE"
-        sed -i '/TW_INCLUDE_TWRPAPP/d' "$BOARD_FILE"
-        echo "TW_INCLUDE_TWRPAPP := false" >> "$BOARD_FILE"
-        sed -i '/TW_INCLUDE_CRYPTO/d' "$BOARD_FILE"
-        echo "TW_INCLUDE_CRYPTO := false" >> "$BOARD_FILE"
-        sed -i '/TW_INCLUDE_BUSYBOX/d' "$BOARD_FILE"
-        echo "TW_INCLUDE_BUSYBOX := false" >> "$BOARD_FILE"
-        sed -i '/TW_INCLUDE_OPENSSH/d' "$BOARD_FILE"
-        echo "TW_INCLUDE_OPENSSH := false" >> "$BOARD_FILE"
-
-        # 3. 确保 MTP 没有被禁用
-        sed -i '/TW_EXCLUDE_MTP/d' "$BOARD_FILE"
-        # 不添加 TW_EXCLUDE_MTP，默认保留
-
-        # 4. 设置默认语言和署名
-        sed -i '/TW_EXTRA_LANGUAGES/d' "$BOARD_FILE"
-        echo "TW_EXTRA_LANGUAGES := true" >> "$BOARD_FILE"
-        sed -i '/TW_DEFAULT_LANGUAGE/d' "$BOARD_FILE"
-        echo "TW_DEFAULT_LANGUAGE := zh_CN" >> "$BOARD_FILE"
-        sed -i '/TW_DEVICE_VERSION/d' "$BOARD_FILE"
-        echo "TW_DEVICE_VERSION := Xxinn034" >> "$BOARD_FILE"
-
-        # 5. 【可选】增大分区限制（如设备分区允许，取消注释）
-        # echo "BOARD_RECOVERYIMAGE_PARTITION_SIZE := 20971520" >> "$BOARD_FILE"
-
-        echo "🎉 BoardConfig.mk overridden with aggressive optimizations"
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
-
-    # 清理 device.mk 中的引用（辅助）
-    - name: Clean device.mk references
-      run: |
-        DEVICE_DIR="${{ steps.pwd.outputs.workspace-folder }}/${{ github.event.inputs.DEVICE_PATH }}"
-        for mkfile in device.mk omni.mk; do
-          if [ -f "$DEVICE_DIR/$mkfile" ]; then
-            echo "Cleaning $mkfile"
-            sed -i '/busybox/d' "$DEVICE_DIR/$mkfile"
-            sed -i '/bash/d' "$DEVICE_DIR/$mkfile"
-            sed -i '/nano/d' "$DEVICE_DIR/$mkfile"
-            sed -i '/pigz/d' "$DEVICE_DIR/$mkfile"
-            sed -i '/openaes/d' "$DEVICE_DIR/$mkfile"
-            sed -i '/twrpapp/d' "$DEVICE_DIR/$mkfile"
-            sed -i '/TWRPApp/d' "$DEVICE_DIR/$mkfile"
-            sed -i '/libncurses/d' "$DEVICE_DIR/$mkfile"
-            sed -i '/openssh/d' "$DEVICE_DIR/$mkfile"
-          fi
-        done
-
-    # 语言精简（保留 fonts/ 和 languages/ 目录）
-    - name: Prune non-Chinese languages
-      run: |
-        LANG_DIR="${{ steps.pwd.outputs.workspace-folder }}/bootable/recovery/gui/theme/extra-languages/"
-        if [ -d "$LANG_DIR" ]; then
-          echo "Deleting non-Chinese language folders (keeping fonts/ and languages/)..."
-          cd "$LANG_DIR"
-          for lang in $(ls -d */ 2>/dev/null | grep -v -E '^(fonts|languages|zh_CN)/'); do
-            echo "Removing $lang"
-            rm -rf "$lang"
-          done
-          cd - >/dev/null
-          echo "✅ Language folders pruned"
-        else
-          echo "⚠️ extra-languages directory not found"
-        fi
 
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
@@ -276,6 +190,6 @@ jobs:
           Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
           Device: ${{ github.event.inputs.DEVICE_NAME }}
           Target: ${{ github.event.inputs.BUILD_TARGET }}.img
-          Build by Xxinn034 with TWRP customizations
+          Build by Xxinn034
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

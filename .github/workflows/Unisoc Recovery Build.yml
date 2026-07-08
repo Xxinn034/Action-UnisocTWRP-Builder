@@ -78,11 +78,11 @@ jobs:
         cd twrp
         git clone --depth=1 -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ${{ github.event.inputs.DEVICE_TREE_URL }} ${{ github.event.inputs.DEVICE_PATH }}
 
-    # ========== 展讯 DRM 补丁 ==========
+    # ========== 展讯 DRM 补丁（修正分支为 main） ==========
     - name: Clone Unisoc DRM patch
       run: |
         cd twrp
-        git clone -b master https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
+        git clone -b main https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
 
     - name: Apply Unisoc DRM patch
       run: |
@@ -96,6 +96,11 @@ jobs:
         else
           echo "⚠️ Patch file not found, skipping."
         fi
+
+    - name: Set Swap Space
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 12
 
     - name: Set up build environment
       run: |
@@ -112,7 +117,10 @@ jobs:
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
       with:
-        files: twrp/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/recovery.img
+        files: |
+          twrp/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/recovery.img
+          twrp/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
+          twrp/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*vendor*.img
         name: TWRP_${{ github.event.inputs.DEVICE_NAME }}_${{ github.run_number }}
         tag_name: twrp-${{ github.run_number }}
         body: |
