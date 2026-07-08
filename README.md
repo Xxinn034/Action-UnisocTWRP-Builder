@@ -33,9 +33,22 @@
 
 - [minimal-manifest-twrp](https://github.com/minimal-manifest-twrp)
 - [rtyutechstudio/unisoc-twrp-sourcecode_patch](https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch)（展讯 DRM 补丁）
-- 所有贡献者
-
+- 所有贡献者                                        
 ---
+
+## 如何使用
+
+> 示例：假设你的用户名为 `JohnSmith`，设备为展讯 SC9863A。
+
+#### 0. 直接 'Fork'本仓库到你的账户下
+
+![image](https://user-images.githubusercontent.com/37921907/177914706-c92476c5-7e14-4fb3-be94-0c8a11dae874.png)
+
+#### 2. 等待自动跳转后，你将看到自己的用户名
+
+![image](https://user-images.githubusercontent.com/37921907/177915106-5bde6fc9-303c-479e-b290-22b48efd1e4e.png)
+
+#### 3. 点击action，然后选择一个你要跑的workflow去跑，点击后根据“参数说明”填好对应的信息
 
 ## 参数说明
 
@@ -53,25 +66,6 @@
 | `BUILD_TARGET`       | 编译目标分区（`recovery`、`boot` 或 `vendorboot`）        | `recovery`                                                           |
 
 ---
-
-## 如何使用
-
-> 示例：假设你的用户名为 `JohnSmith`，设备为展讯 SC9863A。
-
-#### 0. 如果你要提交代码，请点击本仓库右上角的 'Fork'
-
-![image](https://user-images.githubusercontent.com/37921907/177914706-c92476c5-7e14-4fb3-be94-0c8a11dae874.png)
-
-#### 1. 如果只是简单使用，请点击 'Use this template'
-
-![image](https://github.com/azwhikaru/Action-TWRP-Builder/assets/37921907/fae6ce3c-bd4c-4bbe-8050-5dd29dff2522)
-
-#### 2. 等待自动跳转后，你将看到自己的用户名
-
-![image](https://user-images.githubusercontent.com/37921907/177915106-5bde6fc9-303c-479e-b290-22b48efd1e4e.png)
-
-#### 3. （可选）修改工作流中的 [用户名和邮箱](https://github.com/CaptainThrowback/Action-Recovery-Builder/blob/main/.github/workflows/Recovery%20Build.yml#L100-L101)
-
 ---
 
 📖 English Version
