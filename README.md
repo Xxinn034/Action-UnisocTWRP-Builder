@@ -88,3 +88,106 @@
 ```bash
 pkg install openssh
 ssh-keygen -t ed25519 -C "git@github.com:JohnSmith/Action-Unisoc-TWRP.git"
+
+📖 English Version
+Automated Unisoc TWRP Compilation based on GitHub Actions
+This repository is specially optimized for Unisoc chip devices. It integrates the DRM display patch from rtyutechstudio/unisoc-twrp-sourcecode_patch to fix the black screen issue when booting TWRP on Unisoc devices.
+Thanks to rtyutechstudio for their contribution!
+
+Features
+✅ One-click cloud compilation of TWRP Recovery
+
+✅ Automatically apply Unisoc DRM fix patch
+
+✅ Support multiple manifest branches (twrp-11, twrp-12.1, etc.)
+
+✅ Auto-generate GitHub Release downloads
+
+✅ Optional SSH key support (for private repositories)
+
+Notice
+GitHub Actions service is NOT unlimited, so to avoid waste, only use it for stable device trees.
+
+Before making any changes, make sure the repository belongs to you. Fork if you want to commit code, otherwise use "Use this template".
+
+Issues and Pull Requests may NOT get a reply. If necessary, contact via email.
+
+Python 2 in Debian (Ubuntu) has been removed. If you are working on Android 8.1 and below, use the Legacy workflow.
+
+Do not ask questions about source code errors like:
+
+No rule to make ...
+
+Image ... out of size
+
+Thanks to
+minimal-manifest-twrp
+
+rtyutechstudio/unisoc-twrp-sourcecode_patch (Unisoc DRM patch)
+
+All contributors
+
+Parameter Description
+Name	Description	Example
+MANIFEST_URL	Source manifest repository URL	https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
+MANIFEST_BRANCH	Source branch	twrp-11 (recommended for Unisoc Android 10/11) or twrp-12.1
+DEVICE_TREE_URL	Device tree repository URL	https://github.com/your-username/your-unisoc-device-tree
+DEVICE_TREE_BRANCH	Device tree branch	main
+DEVICE_PATH	Path to device tree in source	device/unisoc/sp9863a (example)
+COMMON_TREE_URL	Common tree URL (leave empty if none)	https://github.com/...
+COMMON_PATH	Common tree path (leave empty if none)	device/unisoc/common
+DEVICE_NAME	Device codename (used for output filename)	sp9863a
+MAKEFILE_NAME	Makefile name (usually omni_<codename>)	omni_sp9863a
+BUILD_TARGET	Build target partition (recovery, boot, or vendorboot)	recovery
+How to Use
+Example: assume your username is JohnSmith and your device is Unisoc SC9863A.
+
+0. If you want to commit code, click 'Fork' in the upper right corner of this repository
+https://user-images.githubusercontent.com/37921907/177914706-c92476c5-7e14-4fb3-be94-0c8a11dae874.png
+
+1. If you just want to use it simply, click 'Use this template'
+https://github.com/azwhikaru/Action-TWRP-Builder/assets/37921907/fae6ce3c-bd4c-4bbe-8050-5dd29dff2522
+
+2. After waiting for the automatic redirection, you will see your own username
+https://user-images.githubusercontent.com/37921907/177915106-5bde6fc9-303c-479e-b290-22b48efd1e4e.png
+
+3. (Optional) Change the username and email in the workflow to reflect your GitHub credentials
+Setting up SSH Keys (Optional)
+4. Go to Settings, then select Deploy keys and select "Add deploy key" button.
+5. On your Android device, install Termux
+6. Install openssh in Termux and generate ssh keys. (Do not use passphrase for keys)
+NOTE: When creating the deploy key for a repository like git@github.com:owner/repo.git or https://github.com/owner/repo, put that URL into the key comment. (Hint: Try ssh-keygen ... -C "git@github.com:owner/repo.git".)
+owner = your GitHub username.
+
+bash
+pkg install openssh
+ssh-keygen -t ed25519 -C "git@github.com:JohnSmith/Action-Unisoc-TWRP.git"
+7. Add the public key to GitHub
+In Termux, run:
+
+bash
+cd /data/data/com.termux/files/usr/etc/ssh
+cat ssh_host_ed25519_key.pub
+Copy the output and paste it into the Key box on GitHub, give it a title.
+
+8. Add the private key to repository Secrets
+In Termux, run:
+
+bash
+cat ssh_host_ed25519_key
+Copy the output.
+
+In your GitHub repository, go to Settings → Secrets and variables → Actions, click New repository secret, name it SSH_PRIVATE_KEY, paste the private key, and save.
+
+Building the Recovery
+9. Click the Actions tab and select the workflow (e.g., Unisoc TWRP Builder)
+https://user-images.githubusercontent.com/37921907/177915304-8731ed80-1d49-48c9-9848-70d0ac8f2720.png
+
+10. Click 'Run workflow' and fill in according to the parameter description above
+https://user-images.githubusercontent.com/37921907/177915346-71c29149-78fb-4a00-996f-5d84ffc9eb8c.png
+
+11. After filling in, click 'Run workflow' to start running
+Compilation results
+Can be downloaded at Release
+
+Enjoy your custom TWRP for Unisoc devices!
