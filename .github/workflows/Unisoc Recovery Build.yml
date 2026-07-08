@@ -1,13 +1,14 @@
-name: Build TWRP
+name: Unisoc TWRP Builder
+
 on:
   workflow_dispatch:
     inputs:
       MANIFEST_BRANCH:
-        description: 'Manifest分支（Android 12.1请使用twrp-12.1）'
+        description: 'Manifest分支（展讯安卓10/11推荐twrp-11）'
         required: true
-        default: 'twrp-12.1'
+        default: 'twrp-11'
       DEVICE_TREE_URL:
-        description: 'https://github.com/你的用户名/你的设备树仓库'
+        description: '设备树仓库URL'
         required: true
         default: 'https://github.com/你的用户名/你的设备树仓库'
       DEVICE_TREE_BRANCH:
@@ -15,19 +16,19 @@ on:
         required: true
         default: 'main'
       DEVICE_PATH:
-        description: '设备树在源码中的路径（如 device/厂商/代号'
+        description: '设备树在源码中的路径（如 device/厂商/代号）'
         required: true
         default: 'device/你的厂商/你的代号'
       DEVICE_NAME:
-        description: '设备代号（将用于输出文件名'
+        description: '设备代号（将用于输出文件名）'
         required: true
         default: '你的设备代号'
-      DEVICE_MAKEFILE:
-        description: '编译目标名称（通常为 omni_你的设备代号）'
+      MAKEFILE_NAME:
+        description: 'Makefile 名称（通常为 omni_设备代号）'
         required: true
         default: 'omni_你的设备代号'
       BUILD_TARGET:
-        description: '编译目标 (例如, recoveryimage, bootimage)'
+        description: '编译目标 (例如 recoveryimage, bootimage)'
         required: true
         default: 'recoveryimage'
 
@@ -81,7 +82,7 @@ jobs:
     - name: Clone Unisoc DRM patch
       run: |
         cd twrp
-        git clone https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
+        git clone -b master https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
 
     - name: Apply Unisoc DRM patch
       run: |
@@ -101,7 +102,7 @@ jobs:
         cd twrp
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
-        lunch twrp_${{ github.event.inputs.DEVICE_NAME }}-eng
+        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
 
     - name: Build recovery
       run: |
