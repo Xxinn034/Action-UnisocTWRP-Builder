@@ -1,0 +1,123 @@
+name: Build TWRP
+on:
+  workflow_dispatch:
+    inputs:
+      MANIFEST_BRANCH:
+        description: 'Manifest分支（Android 12.1请使用twrp-12.1）'
+        required: true
+        default: 'twrp-12.1'
+      DEVICE_TREE_URL:
+        description: 'https://github.com/你的用户名/你的设备树仓库'
+        required: true
+        default: 'https://github.com/你的用户名/你的设备树仓库'
+      DEVICE_TREE_BRANCH:
+        description: '设备树分支'
+        required: true
+        default: 'main'
+      DEVICE_PATH:
+        description: '设备树在源码中的路径（如 device/厂商/代号'
+        required: true
+        default: 'device/你的厂商/你的代号'
+      DEVICE_NAME:
+        description: '设备代号（将用于输出文件名'
+        required: true
+        default: '你的设备代号'
+      DEVICE_MAKEFILE:
+        description: '编译目标名称（通常为 omni_你的设备代号）'
+        required: true
+        default: 'omni_你的设备代号'
+      BUILD_TARGET:
+        description: '编译目标 (例如, recoveryimage, bootimage)'
+        required: true
+        default: 'recoveryimage'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout build script
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt update
+        sudo apt upgrade -y
+        sudo apt install -y \
+          bc bison build-essential ccache curl flex g++-multilib gcc-multilib git git-lfs gnupg gperf \
+          imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev \
+          libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools \
+          xsltproc zip zlib1g-dev python3
+
+    - name: Install repo tool
+      run: |
+        sudo curl --create-dirs -L -o /usr/local/bin/repo -O -J https://storage.googleapis.com/git-repo-downloads/repo
+        sudo chmod a+x /usr/local/bin/repo
+
+    - name: Configure Git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
+    - name: Initialize TWRP source
+      run: |
+        mkdir -p twrp
+        cd twrp
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b ${{ github.event.inputs.MANIFEST_BRANCH }}
+
+    - name: Sync source code
+      run: |
+        cd twrp
+        repo sync -j$(nproc) --force-sync --no-clone-bundle --no-tags
+
+    - name: Clone device tree
+      run: |
+        cd twrp
+        git clone --depth=1 -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ${{ github.event.inputs.DEVICE_TREE_URL }} ${{ github.event.inputs.DEVICE_PATH }}
+
+    # ========== 展讯 DRM 补丁 ==========
+    - name: Clone Unisoc DRM patch
+      run: |
+        cd twrp
+        git clone https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
+
+    - name: Apply Unisoc DRM patch
+      run: |
+        cd twrp
+        PATCH_FILE="./patch/unisoc-patch/graphics_drm.cpp"
+        TARGET_FILE="./bootable/recovery/minuitwrp/graphics_drm.cpp"
+        if [ -f "$PATCH_FILE" ]; then
+          echo "✅ Applying Unisoc DRM patch..."
+          cp -f "$PATCH_FILE" "$TARGET_FILE"
+          echo "✅ Patch applied successfully."
+        else
+          echo "⚠️ Patch file not found, skipping."
+        fi
+
+    - name: Set up build environment
+      run: |
+        cd twrp
+        export ALLOW_MISSING_DEPENDENCIES=true
+        source build/envsetup.sh
+        lunch twrp_${{ github.event.inputs.DEVICE_NAME }}-eng
+
+    - name: Build recovery
+      run: |
+        cd twrp
+        make -j$(nproc) ${{ github.event.inputs.BUILD_TARGET }}
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: twrp/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/recovery.img
+        name: TWRP_${{ github.event.inputs.DEVICE_NAME }}_${{ github.run_number }}
+        tag_name: twrp-${{ github.run_number }}
+        body: |
+          Automatically built TWRP recovery
+          Device: ${{ github.event.inputs.DEVICE_NAME }}
+          Manifest branch: ${{ github.event.inputs.MANIFEST_BRANCH }}
+          Build target: ${{ github.event.inputs.BUILD_TARGET }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
