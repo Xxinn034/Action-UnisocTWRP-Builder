@@ -129,14 +129,14 @@ jobs:
 
     - name: Apply Unisoc DRM patch
       run: |
-        PATCH_FILE="./patch/unisoc-patch/graphics_drm.cpp"
+        PATCH_SRC="./patch/unisoc-patch/graphics_drm.cpp.sprd_legacy_kms_fixed"
         TARGET_FILE="./bootable/recovery/minuitwrp/graphics_drm.cpp"
-        if [ -f "$PATCH_FILE" ]; then
-          echo "✅ Applying Unisoc DRM patch..."
-          cp -f "$PATCH_FILE" "$TARGET_FILE"
+        if [ -f "$PATCH_SRC" ]; then
+          echo "✅ Applying Unisoc DRM patch (renaming from .sprd_legacy_kms_fixed)..."
+          cp -f "$PATCH_SRC" "$TARGET_FILE"
           echo "✅ Patch applied successfully."
         else
-          echo "⚠️ Patch file not found, skipping."
+          echo "⚠️ Patch source file not found, skipping."
         fi
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
