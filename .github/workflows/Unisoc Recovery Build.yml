@@ -94,7 +94,8 @@ jobs:
           cp -f "$PATCH_FILE" "$TARGET_FILE"
           echo "✅ Patch applied successfully."
         else
-          echo "⚠️ Patch file not found, skipping."
+          echo "⚠️ Patch file not found, listing directory contents:"
+          ls -la ./patch/unisoc-patch/ || true
         fi
 
     - name: Set Swap Space
