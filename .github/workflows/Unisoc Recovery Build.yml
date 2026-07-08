@@ -2,6 +2,10 @@ name: Build TWRP
 on:
   workflow_dispatch:
     inputs:
+      MANIFEST_URL:
+        description: 'Manifest仓库URL（通常无需修改）'
+        required: true
+        default: 'https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni'
       MANIFEST_BRANCH:
         description: 'Manifest分支（Android 12.1请使用twrp-12.1）'
         required: true
