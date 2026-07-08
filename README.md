@@ -74,21 +74,6 @@
 
 ---
 
-## 设置 SSH 密钥（可选）
-
-#### 4. 进入仓库 Settings → Deploy keys → Add deploy key
-
-#### 5. 在 Android 设备上安装 [Termux](https://github.com/termux/termux-app/releases)
-
-#### 6. 在 Termux 中安装 openssh 并生成密钥（**不要使用密码短语**）
-
-> 注意：创建部署密钥时，将 `git@github.com:owner/repo.git` 或 `https://github.com/owner/repo` 作为注释填入。（提示：`ssh-keygen ... -C "git@github.com:owner/repo.git"`）  
-> `owner` 为你的 GitHub 用户名。
-
-```bash
-pkg install openssh
-ssh-keygen -t ed25519 -C "git@github.com:JohnSmith/Action-Unisoc-TWRP.git"
-
 📖 English Version
 Automated Unisoc TWRP Compilation based on GitHub Actions
 This repository is specially optimized for Unisoc chip devices. It integrates the DRM display patch from rtyutechstudio/unisoc-twrp-sourcecode_patch to fix the black screen issue when booting TWRP on Unisoc devices.
