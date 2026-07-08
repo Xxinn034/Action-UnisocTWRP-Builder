@@ -102,18 +102,13 @@ jobs:
       with:
         swap-size-gb: 12
 
-    - name: Set up build environment
+    - name: Build recovery (using soong_ui)
       run: |
         cd twrp
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
-
-    - name: Build recovery
-      run: |
-        cd twrp
-        # 使用 m 替代直接 make（新版本 AOSP 不支持直接 make）
-        m -j$(nproc) ${{ github.event.inputs.BUILD_TARGET }}
+        build/soong/soong_ui.bash --make-mode -j$(nproc) ${{ github.event.inputs.BUILD_TARGET }}
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v2

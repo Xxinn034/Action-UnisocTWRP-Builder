@@ -1,4 +1,4 @@
-name: Recovery Build (Legacy)
+name: Unisoc TWRP Builder (Legacy)
 
 on:
   workflow_dispatch:
@@ -170,11 +170,12 @@ jobs:
         sudo ln -s /usr/bin/python2 /usr/bin/python
       continue-on-error: false
 
-    - name: Building recovery
+    - name: Building recovery (using soong_ui)
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
-        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && m -j$(nproc --all) ${{ github.event.inputs.BUILD_TARGET }}image
+        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean
+        build/soong/soong_ui.bash --make-mode -j$(nproc --all) ${{ github.event.inputs.BUILD_TARGET }}image
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Upload to Release
