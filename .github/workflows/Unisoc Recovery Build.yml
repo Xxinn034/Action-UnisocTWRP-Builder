@@ -87,15 +87,16 @@ jobs:
     - name: Apply Unisoc DRM patch
       run: |
         cd twrp
-        PATCH_FILE="./patch/unisoc-patch/graphics_drm.cpp.sprd_legacy_kms_fixed"
-        TARGET_FILE="./bootable/recovery/minuitwrp/graphics_drm.cpp"
-        if [ -f "$PATCH_FILE" ]; then
-          echo "✅ Applying Unisoc DRM patch..."
-          cp -f "$PATCH_FILE" "$TARGET_FILE"
+        PATCH_DIR="./patch/unisoc-patch"
+        echo "Listing contents of $PATCH_DIR:"
+        ls -la "$PATCH_DIR" || echo "Directory not found"
+        # 尝试复制指定文件
+        if [ -f "$PATCH_DIR/graphics_drm.cpp.sprd_legacy_kms_fixed" ]; then
+          echo "✅ Found patch file, applying..."
+          cp -f "$PATCH_DIR/graphics_drm.cpp.sprd_legacy_kms_fixed" "./bootable/recovery/minuitwrp/graphics_drm.cpp"
           echo "✅ Patch applied successfully."
         else
-          echo "⚠️ Patch file not found, listing directory contents:"
-          ls -la ./patch/unisoc-patch/ || true
+          echo "⚠️ graphics_drm.cpp.sprd_legacy_kms_fixed not found, skipping."
         fi
 
     - name: Set Swap Space
