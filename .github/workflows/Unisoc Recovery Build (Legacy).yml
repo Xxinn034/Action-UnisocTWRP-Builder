@@ -121,18 +121,22 @@ jobs:
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    # ========== 展讯 DRM 补丁（直接从本仓库复制） ==========
+    # ========== 展讯 DRM 补丁（直接从本仓库 patches/ 复制） ==========
     - name: Apply Unisoc DRM patch
       run: |
         # 工作目录是 workspace，补丁文件在仓库根目录的 ../patches/ 下
         PATCH_SRC="../patches/graphics_drm.cpp.sprd_legacy_kms_fixed"
         TARGET="./bootable/recovery/minuitwrp/graphics_drm.cpp"
+        echo "Looking for patch at: $PATCH_SRC"
         if [ -f "$PATCH_SRC" ]; then
           echo "✅ Found patch file, applying..."
           cp -f "$PATCH_SRC" "$TARGET"
-          echo "✅ Patch applied successfully."
+          echo "✅ Patch applied successfully to $TARGET"
         else
-          echo "⚠️ Patch file not found, skipping."
+          echo "⚠️ Patch file not found at $PATCH_SRC"
+          echo "Current directory: $(pwd)"
+          echo "Contents of ../patches/:"
+          ls -la ../patches/ || echo "patches directory not found"
         fi
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
