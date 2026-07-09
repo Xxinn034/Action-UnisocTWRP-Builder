@@ -121,23 +121,18 @@ jobs:
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    # ========== 展讯 DRM 补丁 ==========
-    - name: Clone Unisoc DRM patch
-      run: |
-        git clone -b main https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch.git ./patch/unisoc-patch
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
-
+    # ========== 展讯 DRM 补丁（直接从本仓库复制） ==========
     - name: Apply Unisoc DRM patch
       run: |
-        PATCH_FILE="./patch/unisoc-patch/graphics_drm.cpp.sprd_legacy_kms_fixed"
-        TARGET_FILE="./bootable/recovery/minuitwrp/graphics_drm.cpp"
-        if [ -f "$PATCH_FILE" ]; then
-          echo "✅ Applying Unisoc DRM patch..."
-          cp -f "$PATCH_FILE" "$TARGET_FILE"
+        # 工作目录是 workspace，补丁文件在仓库根目录的 ../patches/ 下
+        PATCH_SRC="../patches/graphics_drm.cpp.sprd_legacy_kms_fixed"
+        TARGET="./bootable/recovery/minuitwrp/graphics_drm.cpp"
+        if [ -f "$PATCH_SRC" ]; then
+          echo "✅ Found patch file, applying..."
+          cp -f "$PATCH_SRC" "$TARGET"
           echo "✅ Patch applied successfully."
         else
-          echo "⚠️ Patch file not found, listing directory contents:"
-          ls -la ./patch/unisoc-patch/ || true
+          echo "⚠️ Patch file not found, skipping."
         fi
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
@@ -192,6 +187,5 @@ jobs:
           Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
           Device: ${{ github.event.inputs.DEVICE_NAME }}
           Target: ${{ github.event.inputs.BUILD_TARGET }}.img
-          Build by Xxinn034
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
