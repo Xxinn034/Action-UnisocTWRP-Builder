@@ -70,14 +70,20 @@ jobs:
 
     - name: Prepare the environment
       run: |
-        sudo apt update && sudo apt upgrade -y
-        DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
+        sudo apt update
+        # 显式防止安装 firefox（snap）
+        sudo apt-mark hold firefox snapd 2>/dev/null || true
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
             linux-modules-extra-$(uname -r) \
             gperf gcc-multilib gcc-10-multilib g++-multilib g++-10-multilib \
             libc6-dev lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils \
             xsltproc bc ccache lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev \
             libwxgtk3.0-gtk3-dev libxml2 lzop pngcrush schedtool squashfs-tools \
             imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses5 python3 tar
+        # 卸载可能已安装的 snapd 并禁止其自动启动
+        sudo systemctl stop snapd snapd.socket 2>/dev/null || true
+        sudo apt remove -y --purge snapd gnome-software-plugin-snap 2>/dev/null || true
+        sudo apt-mark hold snapd 2>/dev/null || true
 
     - name: Install OpenJDK 8
       uses: actions/setup-java@v4
@@ -127,7 +133,6 @@ jobs:
         PATCH_SRC="../patches/graphics_drm.cpp.sprd_legacy_kms_fixed"
         TARGET="./bootable/recovery/minuitwrp/graphics_drm.cpp"
         
-        # 如果本地补丁文件不存在或内容无效，则从原始仓库下载
         if [ -f "$PATCH_SRC" ] && [ "$(head -n 1 "$PATCH_SRC" | grep -c "429")" -eq 0 ]; then
           echo "✅ Using local patch file: $PATCH_SRC"
         else
@@ -135,7 +140,6 @@ jobs:
           curl -sSL -o "$PATCH_SRC" "https://raw.githubusercontent.com/rtyutechstudio/unisoc-twrp-sourcecode_patch/main/graphics_drm.cpp.sprd_legacy_kms_fixed"
         fi
         
-        # 确保目标目录存在
         mkdir -p "$(dirname "$TARGET")"
         rm -f "$TARGET"
         cp -f "$PATCH_SRC" "$TARGET"

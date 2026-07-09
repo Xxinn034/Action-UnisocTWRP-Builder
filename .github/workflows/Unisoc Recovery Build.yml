@@ -45,12 +45,17 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt update
-        sudo apt upgrade -y
-        sudo apt install -y \
+        # 显式防止安装 firefox（snap）
+        sudo apt-mark hold firefox snapd 2>/dev/null || true
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
           bc bison build-essential ccache curl flex g++-multilib gcc-multilib git git-lfs gnupg gperf \
           imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev \
           libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools \
           xsltproc zip zlib1g-dev python3
+        # 卸载 snapd（如果已存在）
+        sudo systemctl stop snapd snapd.socket 2>/dev/null || true
+        sudo apt remove -y --purge snapd gnome-software-plugin-snap 2>/dev/null || true
+        sudo apt-mark hold snapd 2>/dev/null || true
 
     - name: Install repo tool
       run: |
@@ -85,24 +90,17 @@ jobs:
         PATCH_SRC="../patches/graphics_drm.cpp.sprd_legacy_kms_fixed"
         TARGET="./bootable/recovery/minuitwrp/graphics_drm.cpp"
         
-        # 如果本地补丁文件不存在或内容无效，则从原始仓库下载
         if [ -f "$PATCH_SRC" ] && [ "$(head -n 1 "$PATCH_SRC" | grep -c "429")" -eq 0 ]; then
           echo "✅ Using local patch file: $PATCH_SRC"
         else
           echo "⚠️ Local patch file missing or invalid, downloading from upstream..."
           curl -sSL -o "$PATCH_SRC" "https://raw.githubusercontent.com/rtyutechstudio/unisoc-twrp-sourcecode_patch/main/graphics_drm.cpp.sprd_legacy_kms_fixed"
-          # 或使用你的仓库：
-          # curl -sSL -o "$PATCH_SRC" "https://raw.githubusercontent.com/Xxinn034/unisoc-twrp-sourcecode_patch/main/graphics_drm.cpp.sprd_legacy_kms_fixed"
         fi
         
-        # 确保目标目录存在
         mkdir -p "$(dirname "$TARGET")"
-        # 删除可能存在的旧文件
         rm -f "$TARGET"
-        # 复制补丁
         cp -f "$PATCH_SRC" "$TARGET"
         echo "✅ Patch applied to $TARGET"
-        # 验证内容
         if [ "$(head -n 1 "$TARGET" | grep -c "429")" -gt 0 ]; then
           echo "❌ Patch file contains error, aborting."
           exit 1
